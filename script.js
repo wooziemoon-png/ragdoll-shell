@@ -4,6 +4,7 @@ const { Engine, World, Bodies, Constraint, Runner } = Matter;
 // ENGINE
 // ==================
 const engine = Engine.create();
+engine.world.gravity.y = 0; // отключаем гравитацию
 const world = engine.world;
 Runner.run(Runner.create(), engine);
 
@@ -16,17 +17,17 @@ canvas.height = window.innerHeight;
 const ctx = canvas.getContext("2d");
 
 // ==================
-// GROUND
+// Платформа (невидимая) для солдата
 // ==================
-World.add(world,
-  Bodies.rectangle(
-    canvas.width / 2,
-    canvas.height - 20,
-    canvas.width,
-    40,
-    { isStatic: true }
-  )
+const groundY = canvas.height / 2 + 130; // чуть ниже центра, чтобы солдат стоял
+const ground = Bodies.rectangle(
+  canvas.width / 2,
+  groundY,
+  canvas.width,
+  10,
+  { isStatic: true }
 );
+World.add(world, ground);
 
 // ==================
 // RAGDOLL (НЕВИДИМЫЙ)
@@ -71,8 +72,8 @@ function loop() {
 
   ctx.drawImage(
     img,
-    -70,  // половина ширины PNG
-    -130, // половина высоты PNG
+    -70,
+    -130,
     140,
     260
   );
@@ -83,19 +84,25 @@ function loop() {
 }
 
 // ==================
-// TOUCH / CLICK для сальто
+// CLICK / TOUCH для сальто
 // ==================
 canvas.addEventListener('touchstart', doFlip);
 canvas.addEventListener('mousedown', doFlip);
 
 function doFlip() {
+  // небольшая гравитация на время сальто
+  engine.world.gravity.y = 1;
+
   // импульс вверх
   Matter.Body.applyForce(
     torso,
     { x: torso.position.x, y: torso.position.y },
-    { x: 0, y: -0.08 }  // сила вверх
+    { x: 0, y: -0.08 }
   );
 
   // вращение (сальто)
   Matter.Body.setAngularVelocity(torso, 0.3);
+
+  // через 1.5 сек возвращаем гравитацию в 0
+  setTimeout(() => { engine.world.gravity.y = 0; }, 1500);
 }
