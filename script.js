@@ -1,10 +1,7 @@
 const { Engine, World, Bodies, Body, Constraint, Runner } = Matter;
 
-// ==================
-// ENGINE
-// ==================
 const engine = Engine.create();
-engine.world.gravity.y = 1; // вниз
+engine.world.gravity.y = 1;
 const world = engine.world;
 Runner.run(Runner.create(), engine);
 
@@ -13,140 +10,136 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 const ctx = canvas.getContext("2d");
 
-// ==================
-// Счётчик сальто
 let flips = 0;
 const counter = document.getElementById("counter");
 
-// ==================
-// Земля
-const groundHeight = 20;
-const groundY = canvas.height / 2 + 130;
-const ground = Bodies.rectangle(canvas.width / 2, groundY, canvas.width, groundHeight, { isStatic:true });
+const groundHeight = 40;
+const groundY = canvas.height / 2 + 200;
+const ground = Bodies.rectangle(canvas.width/2, groundY, canvas.width, groundHeight, { isStatic:true });
 World.add(world, ground);
 
-// ==================
-// Загружаем PNG
-const img = new Image();
-img.src = "assets/soldier.png";
-const groundImg = new Image();
-groundImg.src = "assets/ground.png";
-
-let imagesLoaded = 0;
-let onFlip = false;
-
-function checkAllLoaded() {
-  imagesLoaded++;
-  if(imagesLoaded === 2){
-    setupRagdoll();
-    requestAnimationFrame(loop);
-  }
-}
-
-img.onload = checkAllLoaded;
-groundImg.onload = checkAllLoaded;
-img.onerror = ()=>console.log("Не загрузился soldier.png ❌");
-groundImg.onerror = ()=>console.log("Не загрузился ground.png ❌");
-
-// ==================
-// Bounding box частей солдата
-const partsBox = {
-  torso: { x:45, y:50, w:60, h:120 },
-  head: { x:45, y:0, w:60, h:50 },
-  leftArm: { x:0, y:50, w:45, h:60 },
-  rightArm: { x:105, y:50, w:45, h:60 },
-  leftLeg: { x:45, y:170, w:25, h:90 },
-  rightLeg: { x:80, y:170, w:25, h:90 }
+// =====================
+// Загрузка изображений
+// =====================
+const images = {
+  head: loadImg("assets/head_helmet.png"),
+  torso: loadImg("assets/torso_armor.png"),
+  leftArm: loadImg("assets/left_arm.png"),
+  rightArm: loadImg("assets/right_arm.png"),
+  leftLeg: loadImg("assets/left_leg.png"),
+  rightLeg: loadImg("assets/right_leg.png"),
+  ground: loadImg("assets/ground.png")
 };
 
-// ==================
-// Создаем ragdoll
+function loadImg(src){
+  const img = new Image();
+  img.src = src;
+  return img;
+}
+
+// =====================
+// Размеры (под PNG 2048)
+// =====================
+const scale = 0.25; // уменьшаем под экран
+
+const partsSize = {
+  torso: { w: 500*scale, h: 700*scale },
+  head: { w: 400*scale, h: 400*scale },
+  leftArm: { w: 350*scale, h: 400*scale },
+  rightArm: { w: 350*scale, h: 400*scale },
+  leftLeg: { w: 250*scale, h: 450*scale },
+  rightLeg: { w: 250*scale, h: 450*scale }
+};
+
+// =====================
+// Создание ragdoll
+// =====================
 let torso, head, leftArm, rightArm, leftLeg, rightLeg;
 
 function setupRagdoll(){
   const cx = canvas.width/2;
   const cy = canvas.height/2;
 
-  torso = Bodies.rectangle(cx, cy, partsBox.torso.w, partsBox.torso.h, { mass:2, frictionAir:0.05, restitution:0.3 });
-  head  = Bodies.circle(cx, cy - 80, partsBox.head.w/2, { mass:0.5, frictionAir:0.05, restitution:0.3 });
-  leftArm  = Bodies.rectangle(cx - 50, cy - 20, partsBox.leftArm.w, partsBox.leftArm.h, { mass:0.7, frictionAir:0.05 });
-  rightArm = Bodies.rectangle(cx + 50, cy - 20, partsBox.rightArm.w, partsBox.rightArm.h, { mass:0.7, frictionAir:0.05 });
-  leftLeg  = Bodies.rectangle(cx - 20, cy + 80, partsBox.leftLeg.w, partsBox.leftLeg.h, { mass:0.7, frictionAir:0.05 });
-  rightLeg = Bodies.rectangle(cx + 20, cy + 80, partsBox.rightLeg.w, partsBox.rightLeg.h, { mass:0.7, frictionAir:0.05 });
+  torso = Bodies.rectangle(cx, cy, partsSize.torso.w, partsSize.torso.h, { mass:2, frictionAir:0.04 });
+  head  = Bodies.circle(cx, cy - 180*scale, partsSize.head.w/2, { mass:0.6 });
+  leftArm  = Bodies.rectangle(cx - 200*scale, cy - 50*scale, partsSize.leftArm.w, partsSize.leftArm.h, { mass:0.8 });
+  rightArm = Bodies.rectangle(cx + 200*scale, cy - 50*scale, partsSize.rightArm.w, partsSize.rightArm.h, { mass:0.8 });
+  leftLeg  = Bodies.rectangle(cx - 80*scale, cy + 250*scale, partsSize.leftLeg.w, partsSize.leftLeg.h, { mass:0.9 });
+  rightLeg = Bodies.rectangle(cx + 80*scale, cy + 250*scale, partsSize.rightLeg.w, partsSize.rightLeg.h, { mass:0.9 });
 
   World.add(world, [torso, head, leftArm, rightArm, leftLeg, rightLeg]);
 
-  // constraints
   World.add(world, [
-    Constraint.create({ bodyA: head, bodyB: torso, pointA:{x:0,y:25}, pointB:{x:0,y:-60}, stiffness:0.6 }),
-    Constraint.create({ bodyA: leftArm, bodyB: torso, pointA:{x:0,y:-30}, pointB:{x:-30,y:-40}, stiffness:0.6 }),
-    Constraint.create({ bodyA: rightArm, bodyB: torso, pointA:{x:0,y:-30}, pointB:{x:30,y:-40}, stiffness:0.6 }),
-    Constraint.create({ bodyA: leftLeg, bodyB: torso, pointA:{x:0,y:-30}, pointB:{x:-15,y:60}, stiffness:0.6 }),
-    Constraint.create({ bodyA: rightLeg, bodyB: torso, pointA:{x:0,y:-30}, pointB:{x:15,y:60}, stiffness:0.6 })
+    Constraint.create({ bodyA: head, bodyB: torso, pointA:{x:0,y:50*scale}, pointB:{x:0,y:-300*scale}, stiffness:0.6 }),
+    Constraint.create({ bodyA: leftArm, bodyB: torso, pointA:{x:0,y:-150*scale}, pointB:{x:-200*scale,y:-200*scale}, stiffness:0.6 }),
+    Constraint.create({ bodyA: rightArm, bodyB: torso, pointA:{x:0,y:-150*scale}, pointB:{x:200*scale,y:-200*scale}, stiffness:0.6 }),
+    Constraint.create({ bodyA: leftLeg, bodyB: torso, pointA:{x:0,y:-200*scale}, pointB:{x:-100*scale,y:300*scale}, stiffness:0.6 }),
+    Constraint.create({ bodyA: rightLeg, bodyB: torso, pointA:{x:0,y:-200*scale}, pointB:{x:100*scale,y:300*scale}, stiffness:0.6 })
   ]);
 }
 
-// ==================
+setupRagdoll();
+
+// =====================
 // LOOP
+// =====================
 function loop(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // земля
-  if(groundImg.complete){
-    ctx.drawImage(groundImg, 0, groundY, canvas.width, groundHeight);
+  if(images.ground.complete){
+    ctx.drawImage(images.ground, 0, groundY, canvas.width, groundHeight);
   } else {
-    ctx.fillStyle = "green";
+    ctx.fillStyle = "#2f7d32";
     ctx.fillRect(0, groundY, canvas.width, groundHeight);
   }
 
-  // части тела
-  drawPart(head, partsBox.head);
-  drawPart(torso, partsBox.torso);
-  drawPart(leftArm, partsBox.leftArm);
-  drawPart(rightArm, partsBox.rightArm);
-  drawPart(leftLeg, partsBox.leftLeg);
-  drawPart(rightLeg, partsBox.rightLeg);
-
-  // приземление и счётчик
-  [torso,leftLeg,rightLeg].forEach(body=>{
-    const diff = groundY - (body.position.y + 30);
-    if(diff < 0 && body.velocity.y > 0){
-      Body.setVelocity(body,{x:body.velocity.x, y:-body.velocity.y*0.3});
-      Body.setAngularVelocity(body, body.angularVelocity*0.5);
-      if(onFlip){
-        flips++;
-        counter.innerText = "Сальто: " + flips;
-        onFlip = false;
-      }
-    }
-  });
+  drawBodyPart(torso, images.torso, partsSize.torso);
+  drawBodyPart(head, images.head, partsSize.head);
+  drawBodyPart(leftArm, images.leftArm, partsSize.leftArm);
+  drawBodyPart(rightArm, images.rightArm, partsSize.rightArm);
+  drawBodyPart(leftLeg, images.leftLeg, partsSize.leftLeg);
+  drawBodyPart(rightLeg, images.rightLeg, partsSize.rightLeg);
 
   requestAnimationFrame(loop);
 }
 
-// ==================
-// drawPart
-function drawPart(body, box){
+requestAnimationFrame(loop);
+
+// =====================
+// Рисование
+// =====================
+function drawBodyPart(body, img, size){
+  if(!img.complete) return;
+
   ctx.save();
   ctx.translate(body.position.x, body.position.y);
   ctx.rotate(body.angle);
-  ctx.drawImage(img, box.x, box.y, box.w, box.h, -box.w/2, -box.h/2, box.w, box.h);
+  ctx.drawImage(img, -size.w/2, -size.h/2, size.w, size.h);
   ctx.restore();
 }
 
-// ==================
-// клик / тап для сальто
-canvas.addEventListener('touchstart', doFlip);
+// =====================
+// Флип
+// =====================
+let onFlip = false;
+
 canvas.addEventListener('mousedown', doFlip);
+canvas.addEventListener('touchstart', doFlip);
 
 function doFlip(){
   if(onFlip) return;
   onFlip = true;
 
   Body.setVelocity(torso,{x:0,y:-25});
-  Body.setAngularVelocity(torso,1.5);
-  Body.setAngularVelocity(leftArm, 2);
-  Body.setAngularVelocity(rightArm, -2);
-  Body.setAngularVelocity(leftLeg, 1);
-  Body.setAngularVelocity(rightLeg, -1.5);
-}
+  Body.setAngularVelocity(torso,2);
+  Body.setAngularVelocity(leftArm,3);
+  Body.setAngularVelocity(rightArm,-3);
+  Body.setAngularVelocity(leftLeg,2);
+  Body.setAngularVelocity(rightLeg,-2);
+
+  flips++;
+  counter.innerText = "Сальто: " + flips;
+
+  setTimeout(()=>onFlip=false,800);
+    }
+                              
