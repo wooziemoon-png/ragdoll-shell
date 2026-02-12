@@ -2,15 +2,12 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Flip Game</title>
+<title>Real Flip Physics</title>
 <style>
 body {
   margin: 0;
   overflow: hidden;
   background: #1e2f45;
-}
-canvas {
-  display: block;
 }
 #score {
   position: absolute;
@@ -25,110 +22,98 @@ canvas {
 <body>
 
 <div id="score">Сальто: 0</div>
-<canvas id="game"></canvas>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
 
-function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-resize();
-window.addEventListener("resize", resize);
+const { Engine, Render, Runner, Bodies, Body, Composite, Events } = Matter;
 
-const groundY = () => canvas.height * 0.66;
+const engine = Engine.create();
+engine.gravity.y = 1.4;
 
-const player = {
-  x: () => canvas.width / 2,
-  y: canvas.height * 0.4,
-  width: 50,
-  height: 120,
-  velocityY: 0,
-  rotation: 0,
-  angularVelocity: 0,
-  isOnGround: false,
-  flipCount: 0,
-  flipDirection: 1
-};
+const render = Render.create({
+  element: document.body,
+  engine: engine,
+  options: {
+    width: window.innerWidth,
+    height: window.innerHeight,
+    wireframes: false,
+    background: '#1e2f45'
+  }
+});
+
+Render.run(render);
+Runner.run(Runner.create(), engine);
+
+const ground = Bodies.rectangle(
+  window.innerWidth/2,
+  window.innerHeight*0.8,
+  window.innerWidth,
+  40,
+  { isStatic: true, render: { fillStyle: '#111' } }
+);
+
+Composite.add(engine.world, [ground]);
+
+// 🔥 ЦЕЛЬНОЕ ТЕЛО
+const player = Bodies.rectangle(
+  window.innerWidth/2,
+  window.innerHeight*0.5,
+  40,
+  120,
+  {
+    density: 0.004,
+    friction: 0.8,
+    restitution: 0.1,
+    render: { fillStyle: '#2e7d32' }
+  }
+);
+
+Composite.add(engine.world, player);
+
+let flipCount = 0;
+let canJump = false;
+
+Events.on(engine, "collisionStart", function(event) {
+  event.pairs.forEach(pair => {
+    if (pair.bodyA === player || pair.bodyB === player) {
+      canJump = true;
+      player.angle = 0;
+      player.angularVelocity = 0;
+    }
+  });
+});
 
 function jump() {
-  if (player.isOnGround) {
-    player.velocityY = -18;
-    player.isOnGround = false;
+  if (!canJump) return;
 
-    // Рандом направление флипа
-    player.flipDirection = Math.random() > 0.5 ? 1 : -1;
-    player.angularVelocity = 0.25 * player.flipDirection;
-  }
+  canJump = false;
+
+  // Сила прыжка
+  Body.applyForce(player, player.position, { x: 0, y: -0.25 });
+
+  // Рандом вращение
+  const dir = Math.random() > 0.5 ? 1 : -1;
+  Body.setAngularVelocity(player, 0.3 * dir);
 }
 
-canvas.addEventListener("click", jump);
-canvas.addEventListener("touchstart", jump);
+window.addEventListener("click", jump);
+window.addEventListener("touchstart", jump);
 
-function update() {
-  player.velocityY += 0.9;
-  player.y += player.velocityY;
+let lastAngle = 0;
 
-  if (!player.isOnGround) {
-    player.rotation += player.angularVelocity;
-  }
+Events.on(engine, "afterUpdate", function() {
+  const angleDiff = player.angle - lastAngle;
 
-  // Столкновение с землей
-  if (player.y + player.height / 2 > groundY()) {
-    player.y = groundY() - player.height / 2;
-    player.velocityY = 0;
-    player.angularVelocity = 0;
-    player.rotation = 0;
-    player.isOnGround = true;
+  if (Math.abs(player.angle) > Math.PI * 2) {
+    flipCount++;
+    document.getElementById("score").innerText = "Сальто: " + flipCount;
+    Body.setAngle(player, 0);
   }
 
-  // Подсчет полного оборота
-  if (Math.abs(player.rotation) >= Math.PI * 2) {
-    player.rotation = 0;
-    player.flipCount++;
-    document.getElementById("score").innerText = "Сальто: " + player.flipCount;
-  }
-}
+  lastAngle = player.angle;
+});
 
-function drawGround() {
-  ctx.fillStyle = "#111";
-  ctx.fillRect(0, groundY(), canvas.width, canvas.height - groundY());
-}
-
-function drawPlayer() {
-  ctx.save();
-  ctx.translate(player.x(), player.y);
-  ctx.rotate(player.rotation);
-
-  // Тело
-  ctx.fillStyle = "#2e7d32";
-  ctx.fillRect(-20, -40, 40, 80);
-
-  // Голова
-  ctx.beginPath();
-  ctx.arc(0, -65, 22, 0, Math.PI * 2);
-  ctx.fillStyle = "#f1c27d";
-  ctx.fill();
-
-  // Ноги
-  ctx.fillStyle = "#1b5e20";
-  ctx.fillRect(-15, 40, 10, 40);
-  ctx.fillRect(5, 40, 10, 40);
-
-  ctx.restore();
-}
-
-function loop() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  update();
-  drawGround();
-  drawPlayer();
-  requestAnimationFrame(loop);
-}
-
-loop();
 </script>
 </body>
 </html>
