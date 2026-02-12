@@ -1,203 +1,134 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Soldier Physics</title>
+<title>Flip Game</title>
 <style>
-html,body{margin:0;overflow:hidden;background:#1e2f45;color:white}
-#ui{position:fixed;top:10px;left:10px;font-family:sans-serif;z-index:10}
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #1e2f45;
+}
+canvas {
+  display: block;
+}
+#score {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: white;
+  font-family: Arial;
+  font-size: 18px;
+}
 </style>
 </head>
 <body>
-<div id="ui">Сальто: <span id="counter">0</span></div>
 
-<script src="https://cdn.jsdelivr.net/npm/pixi.js@7/dist/pixi.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
+<div id="score">Сальто: 0</div>
+<canvas id="game"></canvas>
 
 <script>
-const { Engine, World, Bodies, Body, Runner, Constraint, Events } = Matter;
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-// =====================
-// PIXI
-// =====================
-const app = new PIXI.Application({
-  resizeTo: window,
-  backgroundColor: 0x1e2f45,
-  antialias: true
-});
-document.body.appendChild(app.view);
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener("resize", resize);
 
-// =====================
-// Matter
-// =====================
-const engine = Engine.create();
-engine.gravity.y = 1.2;
-engine.gravity.scale = 0.001;
-Runner.run(Runner.create(), engine);
-const world = engine.world;
+const groundY = () => canvas.height * 0.66;
 
-// =====================
-// Level bounds
-// =====================
-const W = innerWidth;
-const H = innerHeight;
-
-// Пол на 2/3 экрана
-const groundY = H * 0.66;
-
-const ground = Bodies.rectangle(W/2, groundY, W, 80, { isStatic:true });
-const wallL = Bodies.rectangle(-40, H/2, 80, H, { isStatic:true });
-const wallR = Bodies.rectangle(W+40, H/2, 80, H, { isStatic:true });
-const ceiling = Bodies.rectangle(W/2, -40, W, 80, { isStatic:true });
-
-World.add(world, [ground, wallL, wallR, ceiling]);
-
-// =====================
-// Textures
-// =====================
-const T = {
-  torso: PIXI.Texture.from("assets/torso_base.png"),
-  head: PIXI.Texture.from("assets/head_base.png"),
-  lua: PIXI.Texture.from("assets/left_upper_arm.png"),
-  lfa: PIXI.Texture.from("assets/left_forearm.png"),
-  rua: PIXI.Texture.from("assets/right_upper_arm.png"),
-  rfa: PIXI.Texture.from("assets/right_forearm.png"),
-  lt: PIXI.Texture.from("assets/left_thigh.png"),
-  ls: PIXI.Texture.from("assets/left_shin.png"),
-  rt: PIXI.Texture.from("assets/right_thigh.png"),
-  rs: PIXI.Texture.from("assets/right_shin.png"),
-  helmet: PIXI.Texture.from("assets/helmet.png"),
-  vest: PIXI.Texture.from("assets/vest.png"),
-  rifle: PIXI.Texture.from("assets/rifle.png")
+const player = {
+  x: () => canvas.width / 2,
+  y: canvas.height * 0.4,
+  width: 50,
+  height: 120,
+  velocityY: 0,
+  rotation: 0,
+  angularVelocity: 0,
+  isOnGround: false,
+  flipCount: 0,
+  flipDirection: 1
 };
 
-// =====================
-// Bodies (tight proportions)
-// =====================
-const cx = W/2;
-const cy = groundY - 220;
+function jump() {
+  if (player.isOnGround) {
+    player.velocityY = -18;
+    player.isOnGround = false;
 
-const torso = Bodies.rectangle(cx, cy, 110, 180, { mass: 3 });
-const head = Bodies.circle(cx, cy-120, 38, { mass: 1 });
-
-const lua = Bodies.rectangle(cx-75, cy-30, 32, 95);
-const lfa = Bodies.rectangle(cx-105, cy+40, 30, 90);
-
-const rua = Bodies.rectangle(cx+75, cy-30, 32, 95);
-const rfa = Bodies.rectangle(cx+105, cy+40, 30, 90);
-
-const lt = Bodies.rectangle(cx-30, cy+140, 36, 100);
-const ls = Bodies.rectangle(cx-30, cy+240, 34, 110);
-
-const rt = Bodies.rectangle(cx+30, cy+140, 36, 100);
-const rs = Bodies.rectangle(cx+30, cy+240, 34, 110);
-
-World.add(world,[torso,head,lua,lfa,rua,rfa,lt,ls,rt,rs]);
-
-// =====================
-// Constraints (жёсткие, чтобы держался как человек)
-// =====================
-World.add(world,[
-  Constraint.create({bodyA:torso,bodyB:head,pointA:{x:0,y:-95},pointB:{x:0,y:35},stiffness:0.9,length:2}),
-
-  Constraint.create({bodyA:torso,bodyB:lua,pointA:{x:-60,y:-40},pointB:{x:0,y:-45},stiffness:0.9,length:2}),
-  Constraint.create({bodyA:lua,bodyB:lfa,pointA:{x:0,y:45},pointB:{x:0,y:-45},stiffness:0.9,length:2}),
-
-  Constraint.create({bodyA:torso,bodyB:rua,pointA:{x:60,y:-40},pointB:{x:0,y:-45},stiffness:0.9,length:2}),
-  Constraint.create({bodyA:rua,bodyB:rfa,pointA:{x:0,y:45},pointB:{x:0,y:-45},stiffness:0.9,length:2}),
-
-  Constraint.create({bodyA:torso,bodyB:lt,pointA:{x:-25,y:80},pointB:{x:0,y:-40},stiffness:0.95,length:2}),
-  Constraint.create({bodyA:lt,bodyB:ls,pointA:{x:0,y:40},pointB:{x:0,y:-50},stiffness:0.95,length:2}),
-
-  Constraint.create({bodyA:torso,bodyB:rt,pointA:{x:25,y:80},pointB:{x:0,y:-40},stiffness:0.95,length:2}),
-  Constraint.create({bodyA:rt,bodyB:rs,pointA:{x:0,y:40},pointB:{x:0,y:-50},stiffness:0.95,length:2})
-]);
-
-// =====================
-// Sprites
-// =====================
-function S(tex){
-  const s = new PIXI.Sprite(tex);
-  s.anchor.set(0.5);
-  app.stage.addChild(s);
-  return s;
-}
-
-const sTorso=S(T.torso), sHead=S(T.head),
-sLUA=S(T.lua), sLFA=S(T.lfa),
-sRUA=S(T.rua), sRFA=S(T.rfa),
-sLT=S(T.lt), sLS=S(T.ls),
-sRT=S(T.rt), sRS=S(T.rs),
-sHelmet=S(T.helmet), sVest=S(T.vest), sRifle=S(T.rifle);
-
-function sync(b,s){ s.x=b.position.x; s.y=b.position.y; s.rotation=b.angle; }
-
-// =====================
-// Ground check (чтобы нельзя было прыгать в воздухе)
-// =====================
-let canJump = false;
-
-Events.on(engine, "collisionStart", e=>{
-  for(const p of e.pairs){
-    if(
-      (p.bodyA === ls && p.bodyB === ground) ||
-      (p.bodyB === ls && p.bodyA === ground) ||
-      (p.bodyA === rs && p.bodyB === ground) ||
-      (p.bodyB === rs && p.bodyA === ground)
-    ){
-      canJump = true;
-    }
-  }
-});
-
-// =====================
-// State
-// =====================
-let state="IDLE", flips=0;
-const counter=document.getElementById("counter");
-
-function update(){
-  if(state==="FLIP" && torso.position.y > groundY-160 && Math.abs(torso.angle)<0.35){
-    state="IDLE";
-    Body.setAngularVelocity(torso,0);
-    Body.setAngle(torso,0);
+    // Рандом направление флипа
+    player.flipDirection = Math.random() > 0.5 ? 1 : -1;
+    player.angularVelocity = 0.25 * player.flipDirection;
   }
 }
 
-// =====================
-// Loop
-// =====================
-app.ticker.add(()=>{
+canvas.addEventListener("click", jump);
+canvas.addEventListener("touchstart", jump);
+
+function update() {
+  player.velocityY += 0.9;
+  player.y += player.velocityY;
+
+  if (!player.isOnGround) {
+    player.rotation += player.angularVelocity;
+  }
+
+  // Столкновение с землей
+  if (player.y + player.height / 2 > groundY()) {
+    player.y = groundY() - player.height / 2;
+    player.velocityY = 0;
+    player.angularVelocity = 0;
+    player.rotation = 0;
+    player.isOnGround = true;
+  }
+
+  // Подсчет полного оборота
+  if (Math.abs(player.rotation) >= Math.PI * 2) {
+    player.rotation = 0;
+    player.flipCount++;
+    document.getElementById("score").innerText = "Сальто: " + player.flipCount;
+  }
+}
+
+function drawGround() {
+  ctx.fillStyle = "#111";
+  ctx.fillRect(0, groundY(), canvas.width, canvas.height - groundY());
+}
+
+function drawPlayer() {
+  ctx.save();
+  ctx.translate(player.x(), player.y);
+  ctx.rotate(player.rotation);
+
+  // Тело
+  ctx.fillStyle = "#2e7d32";
+  ctx.fillRect(-20, -40, 40, 80);
+
+  // Голова
+  ctx.beginPath();
+  ctx.arc(0, -65, 22, 0, Math.PI * 2);
+  ctx.fillStyle = "#f1c27d";
+  ctx.fill();
+
+  // Ноги
+  ctx.fillStyle = "#1b5e20";
+  ctx.fillRect(-15, 40, 10, 40);
+  ctx.fillRect(5, 40, 10, 40);
+
+  ctx.restore();
+}
+
+function loop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   update();
+  drawGround();
+  drawPlayer();
+  requestAnimationFrame(loop);
+}
 
-  sync(torso,sTorso); sync(head,sHead);
-  sync(lua,sLUA); sync(lfa,sLFA);
-  sync(rua,sRUA); sync(rfa,sRFA);
-  sync(lt,sLT); sync(ls,sLS);
-  sync(rt,sRT); sync(rs,sRS);
-
-  // экипировка жёстко сидит
-  sHelmet.x=sHead.x; sHelmet.y=sHead.y-8; sHelmet.rotation=sHead.rotation;
-  sVest.x=sTorso.x; sVest.y=sTorso.y; sVest.rotation=sTorso.rotation;
-  sRifle.x=sRFA.x+35; sRifle.y=sRFA.y; sRifle.rotation=sRFA.rotation;
-});
-
-// =====================
-// Input
-// =====================
-app.view.addEventListener("pointerdown",()=>{
-  if(!canJump || state!=="IDLE") return;
-
-  canJump = false;
-  state="FLIP";
-
-  Body.setVelocity(torso,{x:0,y:-26});
-  Body.setAngularVelocity(torso,3.2);
-  Body.setVelocity(lt,{x:-2,y:-20});
-  Body.setVelocity(rt,{x:2,y:-20});
-
-  counter.textContent=++flips;
-});
+loop();
 </script>
 </body>
 </html>
