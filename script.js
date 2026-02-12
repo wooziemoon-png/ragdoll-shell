@@ -31,7 +31,7 @@ World.add(world,
 );
 
 // ==================
-// RAGDOLL (НЕВИДИМ)
+// RAGDOLL (НЕВИДИМЫЙ)
 // ==================
 const torso = Bodies.rectangle(500, 300, 60, 120, { mass: 2 });
 const head  = Bodies.circle(500, 220, 25, { mass: 0.5 });
@@ -59,7 +59,7 @@ img.onload = () => {
 };
 
 // ==================
-// LOOP (как в Python)
+// LOOP
 // ==================
 function loop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -70,8 +70,8 @@ function loop() {
 
   ctx.drawImage(
     img,
-    -70,  // половина ширины
-    -130, // половина высоты
+    -70,  // половина ширины PNG
+    -130, // половина высоты PNG
     140,
     260
   );
@@ -79,4 +79,22 @@ function loop() {
   ctx.restore();
 
   requestAnimationFrame(loop);
+}
+
+// ==================
+// TOUCH / CLICK для сальто
+// ==================
+canvas.addEventListener('touchstart', doFlip);
+canvas.addEventListener('mousedown', doFlip);
+
+function doFlip() {
+  // импульс вверх
+  Matter.Body.applyForce(
+    torso,
+    { x: torso.position.x, y: torso.position.y },
+    { x: 0, y: -0.08 }  // сила вверх
+  );
+
+  // вращение (сальто)
+  Matter.Body.setAngularVelocity(torso, 0.3);
 }
