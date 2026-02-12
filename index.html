@@ -1,24 +1,225 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-<meta charset="UTF-8">
-<title>Soldier WebGL</title>
-<style>
-body{margin:0;overflow:hidden;background:#1e2f45;}
-#counter{
-position:fixed;top:20px;left:20px;
-color:white;font-size:20px;font-weight:bold;
-z-index:10;
-}
-</style>
+  <meta charset="UTF-8" />
+  <title>Ukrainian Soldier Physics Demo</title>
+  <style>
+    html,body{margin:0;padding:0;overflow:hidden;background:#1e2f45;color:white;font-family:sans-serif}
+    #ui{position:fixed;top:10px;left:10px;z-index:10;font-size:18px}
+  </style>
 </head>
 <body>
+  <div id="ui">Сальто: <span id="counter">0</span></div>
 
-<div id="counter">Сальто: 0</div>
+  <!-- PIXI & MATTER -->
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.x/dist/pixi.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-<script src="https://pixijs.download/release/pixi.min.js"></script>
-<script src="script.js"></script>
+  <script>
+  const { Engine, World, Bodies, Body, Runner, Constraint } = Matter;
 
+  // =====================
+  // PIXI
+  // =====================
+  const app = new PIXI.Application({
+    resizeTo: window,
+    backgroundColor: 0x1e2f45,
+    antialias: true
+  });
+  document.body.appendChild(app.view);
+
+  // =====================
+  // Matter
+  // =====================
+  const engine = Engine.create();
+  engine.gravity.y = 1.6;
+  engine.gravity.scale = 0.001;
+  Runner.run(Runner.create(), engine);
+  const world = engine.world;
+
+  // =====================
+  // Ground
+  // =====================
+  const groundY = window.innerHeight - 80;
+  const ground = Bodies.rectangle(window.innerWidth/2, groundY, window.innerWidth, 120, { isStatic:true });
+  World.add(world, ground);
+
+  // =====================
+  // Textures (з архіву моделі)
+  // =====================
+  const textures = {
+    torso: PIXI.Texture.from("assets/torso_base.png"),
+    head: PIXI.Texture.from("assets/head_base.png"),
+    leftUpperArm: PIXI.Texture.from("assets/left_upper_arm.png"),
+    leftForearm: PIXI.Texture.from("assets/left_forearm.png"),
+    rightUpperArm: PIXI.Texture.from("assets/right_upper_arm.png"),
+    rightForearm: PIXI.Texture.from("assets/right_forearm.png"),
+    leftThigh: PIXI.Texture.from("assets/left_thigh.png"),
+    leftShin: PIXI.Texture.from("assets/left_shin.png"),
+    rightThigh: PIXI.Texture.from("assets/right_thigh.png"),
+    rightShin: PIXI.Texture.from("assets/right_shin.png"),
+    helmet: PIXI.Texture.from("assets/helmet.png"),
+    vest: PIXI.Texture.from("assets/vest.png"),
+    rifle: PIXI.Texture.from("assets/rifle.png")
+  };
+
+  // =====================
+  // Bodies (ragdoll)
+  // =====================
+  const cx = window.innerWidth/2;
+  const cy = window.innerHeight/2 - 200;
+
+  const torso = Bodies.rectangle(cx, cy, 120, 200, { mass: 3 });
+  const head = Bodies.circle(cx, cy-150, 40, { mass: 1 });
+
+  const leftUpperArm = Bodies.rectangle(cx-90, cy-20, 40, 110);
+  const leftForearm = Bodies.rectangle(cx-120, cy+60, 35, 110);
+
+  const rightUpperArm = Bodies.rectangle(cx+90, cy-20, 40, 110);
+  const rightForearm = Bodies.rectangle(cx+120, cy+60, 35, 110);
+
+  const leftThigh = Bodies.rectangle(cx-35, cy+170, 45, 120);
+  const leftShin = Bodies.rectangle(cx-35, cy+290, 40, 130);
+
+  const rightThigh = Bodies.rectangle(cx+35, cy+170, 45, 120);
+  const rightShin = Bodies.rectangle(cx+35, cy+290, 40, 130);
+
+  World.add(world, [
+    torso, head,
+    leftUpperArm, leftForearm,
+    rightUpperArm, rightForearm,
+    leftThigh, leftShin,
+    rightThigh, rightShin
+  ]);
+
+  // =====================
+  // Constraints (суглоби)
+  // =====================
+  const joints = [
+    Constraint.create({ bodyA: torso, bodyB: head, pointA:{x:0,y:-110}, pointB:{x:0,y:40}, stiffness:0.6 }),
+
+    Constraint.create({ bodyA: torso, bodyB: leftUpperArm, pointA:{x:-70,y:-40}, pointB:{x:0,y:-50}, stiffness:0.6 }),
+    Constraint.create({ bodyA: leftUpperArm, bodyB: leftForearm, pointA:{x:0,y:50}, pointB:{x:0,y:-50}, stiffness:0.6 }),
+
+    Constraint.create({ bodyA: torso, bodyB: rightUpperArm, pointA:{x:70,y:-40}, pointB:{x:0,y:-50}, stiffness:0.6 }),
+    Constraint.create({ bodyA: rightUpperArm, bodyB: rightForearm, pointA:{x:0,y:50}, pointB:{x:0,y:-50}, stiffness:0.6 }),
+
+    Constraint.create({ bodyA: torso, bodyB: leftThigh, pointA:{x:-30,y:100}, pointB:{x:0,y:-50}, stiffness:0.7 }),
+    Constraint.create({ bodyA: leftThigh, bodyB: leftShin, pointA:{x:0,y:50}, pointB:{x:0,y:-60}, stiffness:0.7 }),
+
+    Constraint.create({ bodyA: torso, bodyB: rightThigh, pointA:{x:30,y:100}, pointB:{x:0,y:-50}, stiffness:0.7 }),
+    Constraint.create({ bodyA: rightThigh, bodyB: rightShin, pointA:{x:0,y:50}, pointB:{x:0,y:-60}, stiffness:0.7 })
+  ];
+
+  World.add(world, joints);
+
+  // =====================
+  // Sprites
+  // =====================
+  function sprite(tex){
+    const s = new PIXI.Sprite(tex);
+    s.anchor.set(0.5);
+    app.stage.addChild(s);
+    return s;
+  }
+
+  const sTorso = sprite(textures.torso);
+  const sHead = sprite(textures.head);
+
+  const sLeftUpperArm = sprite(textures.leftUpperArm);
+  const sLeftForearm = sprite(textures.leftForearm);
+  const sRightUpperArm = sprite(textures.rightUpperArm);
+  const sRightForearm = sprite(textures.rightForearm);
+
+  const sLeftThigh = sprite(textures.leftThigh);
+  const sLeftShin = sprite(textures.leftShin);
+  const sRightThigh = sprite(textures.rightThigh);
+  const sRightShin = sprite(textures.rightShin);
+
+  const sHelmet = sprite(textures.helmet);
+  const sVest = sprite(textures.vest);
+  const sRifle = sprite(textures.rifle);
+
+  // =====================
+  // Helpers
+  // =====================
+  function sync(body, sprite){
+    sprite.x = body.position.x;
+    sprite.y = body.position.y;
+    sprite.rotation = body.angle;
+  }
+
+  // =====================
+  // State machine
+  // =====================
+  let state = "IDLE";
+  let flips = 0;
+  const counter = document.getElementById("counter");
+
+  function updateState(){
+    const nearVertical = Math.abs(torso.angle) < 0.4;
+
+    if(state === "FLIP"){
+      if(torso.position.y > groundY - 140 && nearVertical){
+        state = "IDLE";
+        Body.setAngularVelocity(torso, 0);
+        Body.setAngle(torso, 0);
+      }
+    }
+  }
+
+  // =====================
+  // Render loop
+  // =====================
+  app.ticker.add(()=>{
+    updateState();
+
+    sync(torso, sTorso);
+    sync(head, sHead);
+
+    sync(leftUpperArm, sLeftUpperArm);
+    sync(leftForearm, sLeftForearm);
+    sync(rightUpperArm, sRightUpperArm);
+    sync(rightForearm, sRightForearm);
+
+    sync(leftThigh, sLeftThigh);
+    sync(leftShin, sLeftShin);
+    sync(rightThigh, sRightThigh);
+    sync(rightShin, sRightShin);
+
+    // екіпіровка привʼязана до торсу
+    sHelmet.x = sHead.x;
+    sHelmet.y = sHead.y - 10;
+    sHelmet.rotation = sHead.rotation;
+
+    sVest.x = sTorso.x;
+    sVest.y = sTorso.y;
+    sVest.rotation = sTorso.rotation;
+
+    sRifle.x = sRightForearm.x + 40;
+    sRifle.y = sRightForearm.y;
+    sRifle.rotation = sRightForearm.rotation;
+  });
+
+  // =====================
+  // Jump / Flip
+  // =====================
+  app.view.addEventListener("pointerdown", ()=>{
+    if(state !== "IDLE") return;
+
+    state = "FLIP";
+
+    Body.setVelocity(torso, { x:0, y:-26 });
+    Body.setAngularVelocity(torso, 3.2);
+
+    // трохи імпульсу ногам
+    Body.setVelocity(leftThigh, { x:-2, y:-20 });
+    Body.setVelocity(rightThigh, { x:2, y:-20 });
+
+    flips++;
+    counter.innerText = flips;
+  });
+
+  </script>
 </body>
 </html>
