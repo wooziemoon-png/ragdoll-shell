@@ -1,145 +1,185 @@
-const { Engine, World, Bodies, Body, Constraint, Runner } = Matter;
+const { Engine, World, Bodies, Body, Constraint, Runner, Events } = Matter;
 
 const engine = Engine.create();
-engine.world.gravity.y = 1;
+engine.gravity.y = 1.4;
+engine.gravity.scale = 0.001;
 const world = engine.world;
+
 Runner.run(Runner.create(), engine);
 
 const canvas = document.getElementById("c");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+canvas.width = innerWidth;
+canvas.height = innerHeight;
 const ctx = canvas.getContext("2d");
 
 let flips = 0;
 const counter = document.getElementById("counter");
 
-const groundHeight = 40;
-const groundY = canvas.height / 2 + 200;
-const ground = Bodies.rectangle(canvas.width/2, groundY, canvas.width, groundHeight, { isStatic:true });
+// =====================
+// Ground
+// =====================
+const groundY = canvas.height - 80;
+const ground = Bodies.rectangle(canvas.width/2, groundY, canvas.width, 80, {
+  isStatic:true,
+  friction:1
+});
 World.add(world, ground);
 
 // =====================
-// Загрузка изображений
+// Load images
 // =====================
-const images = {
-  head: loadImg("assets/head_helmet.png"),
-  torso: loadImg("assets/torso_armor.png"),
-  leftArm: loadImg("assets/left_arm.png"),
-  rightArm: loadImg("assets/right_arm.png"),
-  leftLeg: loadImg("assets/left_leg.png"),
-  rightLeg: loadImg("assets/right_leg.png"),
-  ground: loadImg("assets/ground.png")
-};
-
-function loadImg(src){
-  const img = new Image();
-  img.src = src;
-  return img;
+function load(src){
+  const i = new Image();
+  i.src = src;
+  return i;
 }
 
-// =====================
-// Размеры (под PNG 2048)
-// =====================
-const scale = 0.25; // уменьшаем под экран
-
-const partsSize = {
-  torso: { w: 500*scale, h: 700*scale },
-  head: { w: 400*scale, h: 400*scale },
-  leftArm: { w: 350*scale, h: 400*scale },
-  rightArm: { w: 350*scale, h: 400*scale },
-  leftLeg: { w: 250*scale, h: 450*scale },
-  rightLeg: { w: 250*scale, h: 450*scale }
+const img = {
+  head: load("assets/head_helmet.png"),
+  torso: load("assets/torso_armor.png"),
+  leftArm: load("assets/left_arm.png"),
+  rightArm: load("assets/right_arm.png"),
+  leftLeg: load("assets/left_leg.png"),
+  rightLeg: load("assets/right_leg.png"),
+  ground: load("assets/ground.png")
 };
 
 // =====================
-// Создание ragdoll
+// Scale (важливо)
 // =====================
-let torso, head, leftArm, rightArm, leftLeg, rightLeg;
+const S = 0.18;
 
-function setupRagdoll(){
-  const cx = canvas.width/2;
-  const cy = canvas.height/2;
+// =====================
+// Bodies
+// =====================
+const cx = canvas.width/2;
+const cy = canvas.height/2 - 200;
 
-  torso = Bodies.rectangle(cx, cy, partsSize.torso.w, partsSize.torso.h, { mass:2, frictionAir:0.04 });
-  head  = Bodies.circle(cx, cy - 180*scale, partsSize.head.w/2, { mass:0.6 });
-  leftArm  = Bodies.rectangle(cx - 200*scale, cy - 50*scale, partsSize.leftArm.w, partsSize.leftArm.h, { mass:0.8 });
-  rightArm = Bodies.rectangle(cx + 200*scale, cy - 50*scale, partsSize.rightArm.w, partsSize.rightArm.h, { mass:0.8 });
-  leftLeg  = Bodies.rectangle(cx - 80*scale, cy + 250*scale, partsSize.leftLeg.w, partsSize.leftLeg.h, { mass:0.9 });
-  rightLeg = Bodies.rectangle(cx + 80*scale, cy + 250*scale, partsSize.rightLeg.w, partsSize.rightLeg.h, { mass:0.9 });
+const torso = Bodies.rectangle(cx, cy, 220*S*10, 380*S*10, {
+  mass:3,
+  friction:0.6,
+  frictionAir:0.02,
+  restitution:0.1
+});
 
-  World.add(world, [torso, head, leftArm, rightArm, leftLeg, rightLeg]);
+const head = Bodies.circle(cx, cy-220*S, 80*S, {
+  mass:0.8,
+  frictionAir:0.02
+});
 
-  World.add(world, [
-    Constraint.create({ bodyA: head, bodyB: torso, pointA:{x:0,y:50*scale}, pointB:{x:0,y:-300*scale}, stiffness:0.6 }),
-    Constraint.create({ bodyA: leftArm, bodyB: torso, pointA:{x:0,y:-150*scale}, pointB:{x:-200*scale,y:-200*scale}, stiffness:0.6 }),
-    Constraint.create({ bodyA: rightArm, bodyB: torso, pointA:{x:0,y:-150*scale}, pointB:{x:200*scale,y:-200*scale}, stiffness:0.6 }),
-    Constraint.create({ bodyA: leftLeg, bodyB: torso, pointA:{x:0,y:-200*scale}, pointB:{x:-100*scale,y:300*scale}, stiffness:0.6 }),
-    Constraint.create({ bodyA: rightLeg, bodyB: torso, pointA:{x:0,y:-200*scale}, pointB:{x:100*scale,y:300*scale}, stiffness:0.6 })
-  ]);
+const leftArm = Bodies.rectangle(cx-160*S, cy-40*S, 70*S*10, 220*S*10, {
+  mass:1,
+  frictionAir:0.02
+});
+
+const rightArm = Bodies.rectangle(cx+160*S, cy-40*S, 70*S*10, 220*S*10, {
+  mass:1,
+  frictionAir:0.02
+});
+
+const leftLeg = Bodies.rectangle(cx-70*S, cy+260*S, 90*S*10, 260*S*10, {
+  mass:1.2,
+  friction:1
+});
+
+const rightLeg = Bodies.rectangle(cx+70*S, cy+260*S, 90*S*10, 260*S*10, {
+  mass:1.2,
+  friction:1
+});
+
+World.add(world,[torso,head,leftArm,rightArm,leftLeg,rightLeg]);
+
+// =====================
+// Constraints (суглоби)
+// =====================
+function joint(a,b,ax,ay,bx,by){
+  return Constraint.create({
+    bodyA:a,
+    bodyB:b,
+    pointA:{x:ax,y:ay},
+    pointB:{x:bx,y:by},
+    stiffness:0.8,
+    damping:0.1,
+    length:0
+  });
 }
 
-setupRagdoll();
+World.add(world,[
+  joint(head,torso,0,60*S,0,-190*S),
+  joint(leftArm,torso,0,-120*S,-150*S,-150*S),
+  joint(rightArm,torso,0,-120*S,150*S,-150*S),
+  joint(leftLeg,torso,0,-140*S,-60*S,200*S),
+  joint(rightLeg,torso,0,-140*S,60*S,200*S)
+]);
 
 // =====================
-// LOOP
+// Angle limits (реалізм)
 // =====================
-function loop(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  if(images.ground.complete){
-    ctx.drawImage(images.ground, 0, groundY, canvas.width, groundHeight);
-  } else {
-    ctx.fillStyle = "#2f7d32";
-    ctx.fillRect(0, groundY, canvas.width, groundHeight);
+function limitAngle(body,min,max){
+  if(body.angle < min){
+    Body.setAngle(body,min);
+    Body.setAngularVelocity(body,0);
   }
-
-  drawBodyPart(torso, images.torso, partsSize.torso);
-  drawBodyPart(head, images.head, partsSize.head);
-  drawBodyPart(leftArm, images.leftArm, partsSize.leftArm);
-  drawBodyPart(rightArm, images.rightArm, partsSize.rightArm);
-  drawBodyPart(leftLeg, images.leftLeg, partsSize.leftLeg);
-  drawBodyPart(rightLeg, images.rightLeg, partsSize.rightLeg);
-
-  requestAnimationFrame(loop);
+  if(body.angle > max){
+    Body.setAngle(body,max);
+    Body.setAngularVelocity(body,0);
+  }
 }
 
-requestAnimationFrame(loop);
+Events.on(engine,"beforeUpdate",()=>{
+  limitAngle(leftArm,-2.2,1.2);
+  limitAngle(rightArm,-1.2,2.2);
+  limitAngle(leftLeg,-1.5,1.5);
+  limitAngle(rightLeg,-1.5,1.5);
+});
 
 // =====================
-// Рисование
+// Draw
 // =====================
-function drawBodyPart(body, img, size){
-  if(!img.complete) return;
+function draw(body,image,w,h){
+  if(!image.complete) return;
 
   ctx.save();
   ctx.translate(body.position.x, body.position.y);
   ctx.rotate(body.angle);
-  ctx.drawImage(img, -size.w/2, -size.h/2, size.w, size.h);
+  ctx.drawImage(image,-w/2,-h/2,w,h);
   ctx.restore();
 }
 
+function loop(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  if(img.ground.complete)
+    ctx.drawImage(img.ground,0,groundY-40,canvas.width,80);
+
+  draw(torso,img.torso,400*S,600*S);
+  draw(head,img.head,260*S,260*S);
+  draw(leftArm,img.leftArm,180*S,420*S);
+  draw(rightArm,img.rightArm,180*S,420*S);
+  draw(leftLeg,img.leftLeg,220*S,500*S);
+  draw(rightLeg,img.rightLeg,220*S,500*S);
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
 // =====================
-// Флип
+// Flip
 // =====================
-let onFlip = false;
+let canFlip=true;
 
-canvas.addEventListener('mousedown', doFlip);
-canvas.addEventListener('touchstart', doFlip);
+canvas.addEventListener("mousedown",flip);
+canvas.addEventListener("touchstart",flip);
 
-function doFlip(){
-  if(onFlip) return;
-  onFlip = true;
+function flip(){
+  if(!canFlip) return;
+  canFlip=false;
 
-  Body.setVelocity(torso,{x:0,y:-25});
-  Body.setAngularVelocity(torso,2);
-  Body.setAngularVelocity(leftArm,3);
-  Body.setAngularVelocity(rightArm,-3);
-  Body.setAngularVelocity(leftLeg,2);
-  Body.setAngularVelocity(rightLeg,-2);
+  Body.setVelocity(torso,{x:0,y:-22});
+  Body.setAngularVelocity(torso,2.5);
 
   flips++;
-  counter.innerText = "Сальто: " + flips;
+  counter.innerText="Сальто: "+flips;
 
-  setTimeout(()=>onFlip=false,800);
-    }
-                              
+  setTimeout(()=>canFlip=true,900);
+}
