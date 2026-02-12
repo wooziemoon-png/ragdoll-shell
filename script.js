@@ -1,6 +1,4 @@
-const {
-  Engine, World, Bodies, Constraint, Runner
-} = Matter;
+const { Engine, World, Bodies, Constraint, Runner } = Matter;
 
 // ==================
 // ENGINE
@@ -33,8 +31,11 @@ World.add(world,
 // ==================
 // RAGDOLL (НЕВИДИМЫЙ)
 // ==================
-const torso = Bodies.rectangle(500, 300, 60, 120, { mass: 2 });
-const head  = Bodies.circle(500, 220, 25, { mass: 0.5 });
+const centerX = canvas.width / 2;
+const centerY = canvas.height / 2;
+
+const torso = Bodies.rectangle(centerX, centerY, 60, 120, { mass: 2 });
+const head  = Bodies.circle(centerX, centerY - 80, 25, { mass: 0.5 });
 
 World.add(world, [torso, head]);
 
