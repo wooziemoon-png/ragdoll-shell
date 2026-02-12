@@ -1,151 +1,42 @@
-  <!DOCTYPE html>
-<html lang="ru">
+<!DOCTYPE html>
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Soldier Ragdoll</title>
+<title>TEST</title>
 <style>
-html,body{margin:0;overflow:hidden;background:#1e2f45;color:white}
-#ui{position:fixed;top:10px;left:10px;font-family:sans-serif}
+html,body{margin:0;overflow:hidden;background:#111}
 </style>
 </head>
 <body>
-<div id="ui">Сальто: <span id="counter">0</span></div>
 
 <script src="https://cdn.jsdelivr.net/npm/pixi.js@7/dist/pixi.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
 
 <script>
-const { Engine, World, Bodies, Body, Runner, Constraint } = Matter;
+const { Engine, World, Bodies, Body, Runner } = Matter;
 
-const app = new PIXI.Application({ resizeTo: window, backgroundColor: 0x1e2f45 });
+const app = new PIXI.Application({ resizeTo: window, backgroundColor: 0x111111 });
 document.body.appendChild(app.view);
 
-// =====================
-// MATTER
-// =====================
 const engine = Engine.create();
-engine.gravity.y = 1.2;
+engine.gravity.y = 1;
 Runner.run(Runner.create(), engine);
-const world = engine.world;
 
-// =====================
-// GROUND
-// =====================
-const groundY = window.innerHeight - 60;
-const ground = Bodies.rectangle(window.innerWidth/2, groundY, window.innerWidth, 120, {isStatic:true});
-World.add(world, ground);
+const box = Bodies.rectangle(300,100,80,80);
+const ground = Bodies.rectangle(300,500,600,40,{isStatic:true});
+World.add(engine.world,[box,ground]);
 
-// =====================
-// TEXTURES
-// =====================
-const T = {
-  torso: PIXI.Texture.from("assets/torso_base.png"),
-  head: PIXI.Texture.from("assets/head_base.png"),
-  lua: PIXI.Texture.from("assets/left_upper_arm.png"),
-  lfa: PIXI.Texture.from("assets/left_forearm.png"),
-  rua: PIXI.Texture.from("assets/right_upper_arm.png"),
-  rfa: PIXI.Texture.from("assets/right_forearm.png"),
-  lt: PIXI.Texture.from("assets/left_thigh.png"),
-  ls: PIXI.Texture.from("assets/left_shin.png"),
-  rt: PIXI.Texture.from("assets/right_thigh.png"),
-  rs: PIXI.Texture.from("assets/right_shin.png"),
-  helmet: PIXI.Texture.from("assets/helmet.png"),
-  vest: PIXI.Texture.from("assets/vest.png"),
-  rifle: PIXI.Texture.from("assets/rifle.png")
-};
+const g = new PIXI.Graphics();
+g.beginFill(0xff0000).drawRect(-40,-40,80,80).endFill();
+g.x=300; g.y=100;
+app.stage.addChild(g);
 
-// =====================
-// BODIES
-// =====================
-const cx = innerWidth/2;
-const cy = innerHeight/2 - 200;
-
-const torso = Bodies.rectangle(cx,cy,120,200,{mass:3});
-const head = Bodies.circle(cx,cy-150,40,{mass:1});
-
-const lua = Bodies.rectangle(cx-90,cy-20,40,110);
-const lfa = Bodies.rectangle(cx-120,cy+60,35,110);
-const rua = Bodies.rectangle(cx+90,cy-20,40,110);
-const rfa = Bodies.rectangle(cx+120,cy+60,35,110);
-
-const lt = Bodies.rectangle(cx-35,cy+170,45,120);
-const ls = Bodies.rectangle(cx-35,cy+290,40,130);
-const rt = Bodies.rectangle(cx+35,cy+170,45,120);
-const rs = Bodies.rectangle(cx+35,cy+290,40,130);
-
-World.add(world,[torso,head,lua,lfa,rua,rfa,lt,ls,rt,rs]);
-
-// =====================
-// JOINTS
-// =====================
-World.add(world,[
-  Constraint.create({bodyA:torso,bodyB:head,pointA:{x:0,y:-110},pointB:{x:0,y:40},stiffness:0.7}),
-  Constraint.create({bodyA:torso,bodyB:lua,pointA:{x:-70,y:-40},pointB:{x:0,y:-50},stiffness:0.7}),
-  Constraint.create({bodyA:lua,bodyB:lfa,pointA:{x:0,y:50},pointB:{x:0,y:-50},stiffness:0.7}),
-  Constraint.create({bodyA:torso,bodyB:rua,pointA:{x:70,y:-40},pointB:{x:0,y:-50},stiffness:0.7}),
-  Constraint.create({bodyA:rua,bodyB:rfa,pointA:{x:0,y:50},pointB:{x:0,y:-50},stiffness:0.7}),
-  Constraint.create({bodyA:torso,bodyB:lt,pointA:{x:-30,y:100},pointB:{x:0,y:-50},stiffness:0.7}),
-  Constraint.create({bodyA:lt,bodyB:ls,pointA:{x:0,y:50},pointB:{x:0,y:-60},stiffness:0.7}),
-  Constraint.create({bodyA:torso,bodyB:rt,pointA:{x:30,y:100},pointB:{x:0,y:-50},stiffness:0.7}),
-  Constraint.create({bodyA:rt,bodyB:rs,pointA:{x:0,y:50},pointB:{x:0,y:-60},stiffness:0.7})
-]);
-
-// =====================
-// SPRITES
-// =====================
-function S(tex){ const s=new PIXI.Sprite(tex); s.anchor.set(0.5); app.stage.addChild(s); return s; }
-
-const sTorso=S(T.torso), sHead=S(T.head),
-sLUA=S(T.lua), sLFA=S(T.lfa),
-sRUA=S(T.rua), sRFA=S(T.rfa),
-sLT=S(T.lt), sLS=S(T.ls),
-sRT=S(T.rt), sRS=S(T.rs),
-sHelmet=S(T.helmet), sVest=S(T.vest), sRifle=S(T.rifle);
-
-function sync(b,s){ s.x=b.position.x; s.y=b.position.y; s.rotation=b.angle; }
-
-// =====================
-// STATE
-// =====================
-let state="IDLE", flips=0;
-const counter=document.getElementById("counter");
-
-function update(){
-  if(state==="FLIP" && torso.position.y>groundY-140 && Math.abs(torso.angle)<0.4){
-    state="IDLE";
-    Body.setAngularVelocity(torso,0);
-    Body.setAngle(torso,0);
-  }
-}
-
-// =====================
-// LOOP
-// =====================
 app.ticker.add(()=>{
-  update();
-  sync(torso,sTorso); sync(head,sHead);
-  sync(lua,sLUA); sync(lfa,sLFA);
-  sync(rua,sRUA); sync(rfa,sRFA);
-  sync(lt,sLT); sync(ls,sLS);
-  sync(rt,sRT); sync(rs,sRS);
-
-  sHelmet.x=sHead.x; sHelmet.y=sHead.y-10; sHelmet.rotation=sHead.rotation;
-  sVest.x=sTorso.x; sVest.y=sTorso.y; sVest.rotation=sTorso.rotation;
-  sRifle.x=sRFA.x+40; sRifle.y=sRFA.y; sRifle.rotation=sRFA.rotation;
+  g.x = box.position.x;
+  g.y = box.position.y;
+  g.rotation = box.angle;
 });
 
-// =====================
-// INPUT
-// =====================
-app.view.addEventListener("pointerdown",()=>{
-  if(state!=="IDLE")return;
-  state="FLIP";
-  Body.setVelocity(torso,{x:0,y:-28});
-  Body.setAngularVelocity(torso,3.4);
-  Body.setVelocity(lt,{x:-3,y:-22});
-  Body.setVelocity(rt,{x:3,y:-22});
-  counter.textContent=++flips;
-});
 </script>
 </body>
 </html>
